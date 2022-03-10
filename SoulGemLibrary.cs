@@ -10,7 +10,7 @@ namespace SoulGemSystem
         unstable,
         health,
         mana,
-        focus
+        focus,
     }
 
     public delegate void GemAction(SoulGem crystal, SoulGemModule module, Transform transform, object inputAction = null);
