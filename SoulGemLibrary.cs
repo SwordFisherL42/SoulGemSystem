@@ -11,6 +11,7 @@ namespace SoulGemSystem
         health,
         mana,
         focus,
+        itemDrop,
     }
 
     public delegate void GemAction(SoulGem crystal, SoulGemModule module, Transform transform, object inputAction = null);
@@ -21,6 +22,7 @@ namespace SoulGemSystem
         public static Color gemGreen = new Color(0.15f, 1f, 0.57f, 1f);
         public static Color gemBlue = new Color(0.035f, 0.52f, 0.89f, 1f);
         public static Color gemRed = new Color(0.84f, 0.19f, 0.19f, 1f);
+        public static Color gemYellow = new Color(1f, 0.828f, 0.165f, 1f);
         public static Color gemEmptyDefault = Color.black;
 
         public const string shaderBaseColor = "Color_9843a7b284934d45b9a6ae5a721b4b9e";
@@ -43,6 +45,8 @@ namespace SoulGemSystem
                     return new GemAction(CrystalMana);
                 case GemActionType.focus:
                     return new GemAction(CrystalFocus);
+                case GemActionType.itemDrop:
+                    return new GemAction(CrystalItem);
                 default:
                     return new GemAction(CrystalEffect);
             }
@@ -60,6 +64,8 @@ namespace SoulGemSystem
                     return gemBlue;
                 case GemActionType.focus:
                     return gemRed;
+                case GemActionType.itemDrop:
+                    return gemYellow;
                 default:
                     return gemPurple;
             }
@@ -80,8 +86,6 @@ namespace SoulGemSystem
 
         public static void CrystalEffect(SoulGem crystal, SoulGemModule _m, Transform _t, object _o)
         {
-            //bool o_set = false;
-            //if (_o != null) o_set = true;
             bool o_set = _o != null ? true : false;
             CrystalEffect(crystal, originalClip: !o_set);
         }
@@ -90,7 +94,8 @@ namespace SoulGemSystem
         {
             crystal.SetCharge(false);
             CrystalEffect(crystal, module, _t, true);
-            Player.currentCreature.Heal(crystal.energy, Player.currentCreature);
+            float maxHeal = Player.currentCreature.maxHealth - Player.currentCreature.currentHealth;
+            Player.currentCreature.Heal(Mathf.Clamp(crystal.energy, 0f, maxHeal), Player.currentCreature);
         }
 
         static void CrystalMana(SoulGem crystal, SoulGemModule module, Transform _t, object _o)
@@ -112,6 +117,49 @@ namespace SoulGemSystem
             crystal.SetCharge(false);
             CrystalEffect(crystal, module, transform, true);
             ExplosiveForce(transform.position, crystal.energy, SoulGemLevelModule.settings.blastForce, SoulGemLevelModule.settings.blastRadius, SoulGemLevelModule.settings.liftMult);
+        }
+
+        static void CrystalItem(SoulGem crystal, SoulGemModule module, Transform _t, object button)
+        {
+            crystal.SetCharge(false);
+            CrystalEffect(crystal, module, _t, true);
+            ItemData spawnedItemData = Catalog.GetData<ItemData>(SoulGemLevelModule.itemSpawnLibrary.RandomItem(), true);
+            if (spawnedItemData == null) return;
+            Side hand = Side.Right;  // TODO: add option or priority for default hand
+            if (crystal.item.handlers.Count > 0)
+                hand = crystal.item.handlers[0].gripInfo.ragdollHand.side;
+            spawnedItemData.SpawnAsync(spawnedItem =>
+            {
+                try
+                {
+#if DEBUG
+                    Debug.Log($"Item {spawnedItem.name} - {spawnedItem.itemId}");
+#endif
+                    spawnedItem.transform.rotation = Quaternion.identity;
+                    crystal.item.handles[0].Release();
+                    crystal.renderer.enabled = false;
+                    crystal.item.Despawn(delay:3f);
+                    if (hand.Equals(Side.Right))
+                    {
+                        spawnedItem.transform.position = Player.local.creature.handRight.transform.position;
+                        if (Player.local.creature.handRight.grabbedHandle == null)
+                            Player.local.creature.handRight.Grab(spawnedItem.handles[0]);
+                        else if (Player.local.creature.handLeft.grabbedHandle == null)
+                            Player.local.creature.handLeft.Grab(spawnedItem.handles[0]);
+                    }
+                    else
+                    {
+                        spawnedItem.transform.position = Player.local.creature.handLeft.transform.position;
+                        if (Player.local.creature.handLeft.grabbedHandle == null)
+                            Player.local.creature.handLeft.Grab(spawnedItem.handles[0]);
+                        else if (Player.local.creature.handRight.grabbedHandle == null)
+                            Player.local.creature.handRight.Grab(spawnedItem.handles[0]);
+                    } 
+                }
+                catch (Exception e) { Debug.Log($"[SoulGemSystem][CrystalItem][ERROR] {e.ToString()}"); }
+            },
+            crystal.transform.position,
+            Quaternion.identity);
         }
 
         static void ExplosiveForce(Vector3 origin, float damage, float force, float blastRadius, float liftMult, ForceMode forceMode = ForceMode.Impulse, bool ignorePlayer = true)

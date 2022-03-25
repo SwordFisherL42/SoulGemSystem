@@ -41,6 +41,7 @@ namespace SoulGemSystem
 
     public class Settings
     {
+        public string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
         public float dropRate;
         public float spawnHeight;
         public float minThrowVelocity;
@@ -52,9 +53,10 @@ namespace SoulGemSystem
         public Dictionary<GemActionType, GemSetting> gemSettings;
         int[] spawnWeights;
         int cumulativeSum;
-        const string settingsFile = "StreamingAssets/Mods/SoulGemSystem/user_settings.json";
-       
-        public static Settings ReadFromDisk()
+        const string userSettingsFile = "StreamingAssets/Mods/SoulGemSystem/user_settings.json";
+        public const string defaultSettingsFile = "StreamingAssets/Mods/SoulGemSystem/DefaultData/default_settings.json";
+
+        public static Settings ReadFromDisk(string settingsFile = userSettingsFile)
         {
             string json = File.ReadAllText(Path.Combine(Application.dataPath, settingsFile));
             return JsonConvert.DeserializeObject<Settings>(json);

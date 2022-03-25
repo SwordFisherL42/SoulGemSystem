@@ -44,7 +44,11 @@ namespace SoulGemSystem
             renderer.material = new Material(renderer.material);
             renderer.enabled = true;
             animator.enabled = false;
-            SetGemType(module.parsedGemType);
+            SetGemType(module.forceType ? module.forcedType : module.parsedGemType);
+            SetName(SoulNames.GetRandomName());
+            SetRenderMaterial(SoulGemLevelModule.local.gemMat);
+            SetAudioClips(SoulGemLevelModule.local.audioClips);
+            SetCharge(state: true, init: true);
             // Gem Events
             mainAction = SoulGemLibrary.GenerateAction(type);
             gemEffect = new GemAction(SoulGemLibrary.CrystalEffect);

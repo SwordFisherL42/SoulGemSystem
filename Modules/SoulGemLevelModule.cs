@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using ThunderRoad;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace SoulGemSystem
         public static SoulGemLevelModule local;
         public static SoulStorage soulTracker;
         public static Settings settings;
+        public static ItemLibrary itemSpawnLibrary;
         public string soulGemItemID;
         public string[] clipAddresses;
         public string materialAddress;
@@ -21,13 +23,20 @@ namespace SoulGemSystem
 
         public override IEnumerator OnLoadCoroutine()
         {
+            string version = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             if (settings == null) settings = Settings.ReadFromDisk();
-            Debug.Log($"[SoulGemSystem][LevelModule][{Time.time}] Mod Settings Loaded:\n{settings.ToString()}");
+            if ((settings.version != version) || (settings.gemSettings.Count < SoulGemLibrary.GemActionTypeValues.Length))
+            {
+                Debug.LogWarning($"[SoulGemSystem][Warning][{Time.time}] Mismatch in user settings. Reverting to default settings");
+                settings = Settings.ReadFromDisk(Settings.defaultSettingsFile);
+            }
             if (local == null) local = this;
             if (soulTracker == null) soulTracker = new SoulStorage(SoulNames.modDataPath, SoulNames.persistenceFile);
-            Debug.Log($"[SoulGemSystem][LevelModule][{Time.time}] Global instances created for SoulGemLevelModule & SoulStorage");
+            if (itemSpawnLibrary == null) itemSpawnLibrary = new ItemLibrary();
+            itemSpawnLibrary.BuildItemsList();
             EventManager.onCreatureKill += DropCreatureSoul;
-            Debug.Log($"[SoulGemSystem][LevelModule][{Time.time}] Soul Gems Added to Creatures");
+            Debug.Log($"[SoulGemSystem][LevelModule][{Time.time}] Global references created for SoulGemSystem v{version}");
+            Debug.Log($"[SoulGemSystem][LevelModule] Mod Settings Loaded:\n{settings.ToString()}");
             foreach (string clipAddress in clipAddresses)
             {
                 Catalog.LoadAssetAsync<AudioClip>(clipAddress, value =>
@@ -71,9 +80,6 @@ namespace SoulGemSystem
                     spawnedGem.transform.position = soulSpawnPoint;
                     spawnedGem.transform.rotation = Quaternion.identity;
                     if (!spawnedGem.TryGetComponent(out SoulGem sg)) return; 
-                    sg.SetRenderMaterial(gemMat);
-                    sg.SetAudioClips(audioClips);
-                    sg.SetName(SoulNames.GetRandomName());
                     sg.DroppedFromCreature();
                 }
                 catch (Exception e) { Debug.Log($"[SoulGemSystem][ERROR] {e.ToString()}"); }
