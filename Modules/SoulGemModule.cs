@@ -14,6 +14,8 @@ namespace SoulGemSystem
         public string gemRenderer;
         // Control Fields
         public bool usesCustomShader = true;
+        public bool forceType = false;
+        public GemActionType forcedType = GemActionType.unstable;
         public float hapticForce = 10.0f;
         public GemActionType parsedGemType;
 
